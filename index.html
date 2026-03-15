@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>序列源生 SequenceStream — 让世界高效流动</title>
+<meta name="description" content="序列源生 SequenceStream - 软件开发、研发提效咨询、AI落地咨询。让世界高效流动。">
+<style>
+@font-face {
+  font-family: 'SS Display';
+  src: local('PingFang SC'), local('Microsoft YaHei'), local('Noto Sans SC');
+  font-weight: 100 900;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --void: #05070a;
+  --deep: #0a0e17;
+  --surface: #0f1420;
+  --dim: #1a2035;
+  --muted: #3a4560;
+  --silver: #8899bb;
+  --light: #c8d4e8;
+  --white: #eaf0ff;
+  --cyan: #00e5ff;
+  --cyan-dim: #00e5ff22;
+  --cyan-glow: #00e5ff44;
+  --blue: #2979ff;
+  --violet: #7c4dff;
+  --accent-gradient: linear-gradient(135deg, var(--cyan), var(--blue), var(--violet));
+  --font-cn: 'SS Display', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-en: 'SF Pro Display', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+html {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-cn);
+  background: var(--void);
+  color: var(--white);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════ NAV ═══════════ */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(24px, 5vw, 80px);
+  height: 72px;
+  background: rgba(5, 7, 10, 0.6);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.06);
+  transition: background 0.4s, box-shadow 0.4s;
+}
+
+nav.scrolled {
+  background: rgba(5, 7, 10, 0.92);
+  box-shadow: 0 1px 40px rgba(0, 229, 255, 0.04);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: var(--white);
+}
+
+.nav-logo-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.nav-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.nav-logo-cn {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.nav-logo-en {
+  font-family: var(--font-en);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--silver);
+}
+
+.nav-links {
+  display: flex;
+  gap: 40px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-family: var(--font-cn);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--silver);
+  text-decoration: none;
+  position: relative;
+  padding: 4px 0;
+  transition: color 0.3s;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--cyan);
+  transition: width 0.3s ease;
+}
+
+.nav-links a:hover { color: var(--white); }
+.nav-links a:hover::after { width: 100%; }
+
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 8px;
+  background: none;
+  border: none;
+}
+
+.nav-hamburger span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--silver);
+  transition: all 0.3s;
+}
+
+/* ═══════════ SECTIONS ═══════════ */
+section {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ═══════════ HERO ═══════════ */
+#hero {
+  background: var(--void);
+}
+
+#hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, transparent 0%, var(--void) 100%),
+    radial-gradient(ellipse 40% 30% at 30% 70%, rgba(0, 229, 255, 0.03) 0%, transparent 100%);
+  z-index: 2;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  border-radius: 100px;
+  font-family: var(--font-en);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 40px;
+  backdrop-filter: blur(10px);
+  animation: fadeInDown 1s ease 0.2s both;
+}
+
+.hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--cyan-glow); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px transparent; }
+}
+
+.hero-title {
+  font-size: clamp(48px, 10vw, 120px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  background: linear-gradient(180deg, var(--white) 0%, var(--silver) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fadeInUp 1s ease 0.4s both;
+}
+
+.hero-slogan {
+  font-size: clamp(20px, 3.5vw, 36px);
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  color: var(--light);
+  margin-bottom: 16px;
+  animation: fadeInUp 1s ease 0.6s both;
+}
+
+.hero-tagline {
+  font-family: var(--font-en);
+  font-size: clamp(12px, 1.5vw, 16px);
+  font-weight: 400;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  animation: fadeInUp 1s ease 0.8s both;
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 1s ease 1.2s both;
+}
+
+.hero-scroll-text {
+  font-family: var(--font-en);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero-scroll-line {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--cyan), transparent);
+  animation: scroll-pulse 2s ease infinite;
+}
+
+@keyframes scroll-pulse {
+  0% { opacity: 0; transform: scaleY(0); transform-origin: top; }
+  50% { opacity: 1; transform: scaleY(1); transform-origin: top; }
+  50.1% { transform-origin: bottom; }
+  100% { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
+}
+
+/* ═══════════ SERVICE SECTIONS ═══════════ */
+.service-section {
+  background: var(--void);
+}
+
+.service-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.4;
+}
+
+.service-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 50%, rgba(5,7,10,0.3) 0%, var(--void) 100%),
+    linear-gradient(to bottom, var(--void) 0%, transparent 15%, transparent 85%, var(--void) 100%);
+}
+
+.service-content {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  padding: 0 24px;
+  max-width: 800px;
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.service-content.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.service-index {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--cyan);
+  margin-bottom: 24px;
+  opacity: 0.7;
+}
+
+.service-title {
+  font-size: clamp(36px, 7vw, 72px);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, var(--white) 20%, var(--silver) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.service-subtitle {
+  font-family: var(--font-en);
+  font-size: clamp(11px, 1.2vw, 14px);
+  font-weight: 500;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 40px;
+}
+
+.service-desc {
+  font-size: clamp(15px, 1.6vw, 18px);
+  font-weight: 300;
+  line-height: 2;
+  letter-spacing: 0.04em;
+  color: var(--silver);
+  max-width: 600px;
+  margin: 0 auto 40px;
+}
+
+.service-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 36px;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 0;
+  background: rgba(0, 229, 255, 0.04);
+  color: var(--cyan);
+  font-family: var(--font-cn);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.service-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--cyan-dim), transparent);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.service-cta:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 30px var(--cyan-dim);
+}
+
+.service-cta:hover::before { opacity: 1; }
+
+.service-cta-arrow {
+  transition: transform 0.3s;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.service-cta:hover .service-cta-arrow { transform: translateX(4px); }
+
+/* ═══════════ SERVICE CANVAS BACKGROUNDS ═══════════ */
+.svc-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ═══════════ ABOUT ═══════════ */
+#about {
+  background: var(--deep);
+}
+
+.about-grid-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
+}
+
+.about-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 24px;
+  max-width: 900px;
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.about-content.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.about-label {
+  font-family: var(--font-en);
+  font-size: 11px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.about-title {
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 32px;
+  background: linear-gradient(180deg, var(--white) 0%, var(--silver) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.about-desc {
+  font-size: clamp(15px, 1.5vw, 18px);
+  font-weight: 300;
+  line-height: 2;
+  letter-spacing: 0.03em;
+  color: var(--silver);
+  margin-bottom: 56px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.about-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.about-value {
+  padding: 40px 24px;
+  border: 1px solid rgba(0, 229, 255, 0.06);
+  background: rgba(0, 229, 255, 0.02);
+  position: relative;
+  transition: border-color 0.4s, background 0.4s;
+}
+
+.about-value:hover {
+  border-color: rgba(0, 229, 255, 0.15);
+  background: rgba(0, 229, 255, 0.04);
+}
+
+.about-value-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 20px;
+  stroke: var(--cyan);
+  opacity: 0.7;
+}
+
+.about-value-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  color: var(--white);
+}
+
+.about-value-en {
+  font-family: var(--font-en);
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.about-value-desc {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.8;
+  color: var(--silver);
+}
+
+/* ═══════════ CONTACT ═══════════ */
+#contact {
+  background: var(--void);
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.contact-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 24px;
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.contact-content.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.contact-label {
+  font-family: var(--font-en);
+  font-size: 11px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.contact-title {
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 24px;
+  color: var(--white);
+}
+
+.contact-desc {
+  font-size: clamp(14px, 1.4vw, 17px);
+  font-weight: 300;
+  line-height: 1.8;
+  color: var(--silver);
+  margin-bottom: 40px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 48px;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: clamp(14px, 1.6vw, 18px);
+  letter-spacing: 2px;
+  text-decoration: none;
+  transition: all 0.4s;
+  position: relative;
+}
+
+.contact-email::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 229, 255, 0.03);
+  transition: background 0.4s;
+}
+
+.contact-email:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 40px var(--cyan-dim), inset 0 0 40px var(--cyan-dim);
+}
+
+.contact-email:hover::before {
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.contact-glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,229,255,0.04) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ═══════════ FOOTER ═══════════ */
+footer {
+  background: var(--void);
+  border-top: 1px solid rgba(0, 229, 255, 0.06);
+  padding: 32px 24px;
+  text-align: center;
+  scroll-snap-align: end;
+}
+
+.footer-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.footer-copy {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.footer-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--dim);
+}
+
+.footer-link {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: color 0.3s;
+}
+
+.footer-link:hover { color: var(--silver); }
+
+/* ═══════════ ANIMATIONS ═══════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════ MOBILE NAV ═══════════ */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(5, 7, 10, 0.97);
+  backdrop-filter: blur(30px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+
+.mobile-menu.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.mobile-menu a {
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 8px;
+  color: var(--silver);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.mobile-menu a:hover { color: var(--cyan); }
+
+/* ═══════════ RESPONSIVE ═══════════ */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .nav-hamburger { display: flex; }
+  .mobile-menu { display: flex; }
+
+  .about-values {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .about-value { padding: 28px 20px; }
+
+  .hero-slogan { letter-spacing: 0.15em; }
+
+  section { scroll-snap-align: start; }
+}
+
+@media (max-width: 480px) {
+  nav { padding: 0 20px; height: 60px; }
+  .nav-logo-cn { font-size: 14px; }
+  .hero-badge { font-size: 9px; letter-spacing: 2px; padding: 5px 14px; }
+  .contact-email { padding: 14px 28px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#hero" class="nav-logo">
+    <svg class="nav-logo-icon" viewBox="0 0 36 36" fill="none">
+      <path d="M6 18 L18 6 L30 18 L18 30Z" stroke="rgba(0,229,255,0.6)" stroke-width="1" fill="none"/>
+      <path d="M12 18 L18 12 L24 18 L18 24Z" stroke="rgba(0,229,255,0.3)" stroke-width="1" fill="rgba(0,229,255,0.05)"/>
+      <circle cx="18" cy="18" r="2" fill="rgba(0,229,255,0.8)"/>
+      <line x1="18" y1="6" x2="18" y2="12" stroke="rgba(0,229,255,0.3)" stroke-width="0.5"/>
+      <line x1="30" y1="18" x2="24" y2="18" stroke="rgba(0,229,255,0.3)" stroke-width="0.5"/>
+      <line x1="18" y1="30" x2="18" y2="24" stroke="rgba(0,229,255,0.3)" stroke-width="0.5"/>
+      <line x1="6" y1="18" x2="12" y2="18" stroke="rgba(0,229,255,0.3)" stroke-width="0.5"/>
+    </svg>
+    <span class="nav-logo-text">
+      <span class="nav-logo-cn">序列源生</span>
+      <span class="nav-logo-en">SequenceStream</span>
+    </span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#svc1">服务</a></li>
+    <li><a href="#about">关于</a></li>
+    <li><a href="#contact">联系</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" aria-label="菜单">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#svc1" onclick="closeMobile()">服务</a>
+  <a href="#about" onclick="closeMobile()">关于</a>
+  <a href="#contact" onclick="closeMobile()">联系</a>
+</div>
+
+<!-- HERO -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      SEQUENCESTREAM
+    </div>
+    <h1 class="hero-title">序列源生</h1>
+    <p class="hero-slogan">让世界高效流动</p>
+    <p class="hero-tagline">Sequencing Efficient Streams</p>
+  </div>
+  <div class="hero-scroll">
+    <span class="hero-scroll-text">Scroll</span>
+    <div class="hero-scroll-line"></div>
+  </div>
+</section>
+
+<!-- SERVICE 1: 软件开发 -->
+<section id="svc1" class="service-section">
+  <canvas class="svc-canvas" id="canvas-svc1"></canvas>
+  <div class="service-gradient"></div>
+  <div class="service-content" data-animate>
+    <div class="service-index">01</div>
+    <h2 class="service-title">软件开发</h2>
+    <p class="service-subtitle">Software Development</p>
+    <p class="service-desc">从0到1构建高质量软件产品，覆盖Web、移动端、云原生等全栈技术领域。我们用工程化思维打造可靠、可扩展的数字化解决方案。</p>
+    <a href="#contact" class="service-cta">
+      <span>了解更多</span>
+      <span class="service-cta-arrow">→</span>
+    </a>
+  </div>
+</section>
+
+<!-- SERVICE 2: 研发提效 -->
+<section id="svc2" class="service-section">
+  <canvas class="svc-canvas" id="canvas-svc2"></canvas>
+  <div class="service-gradient"></div>
+  <div class="service-content" data-animate>
+    <div class="service-index">02</div>
+    <h2 class="service-title">研发提效咨询</h2>
+    <p class="service-subtitle">R&D Efficiency Consulting</p>
+    <p class="service-desc">深入研发团队，诊断效率瓶颈，优化工程流程与工具链。帮助团队实现持续交付、快速迭代，释放研发产能。</p>
+    <a href="#contact" class="service-cta">
+      <span>了解更多</span>
+      <span class="service-cta-arrow">→</span>
+    </a>
+  </div>
+</section>
+
+<!-- SERVICE 3: AI落地 -->
+<section id="svc3" class="service-section">
+  <canvas class="svc-canvas" id="canvas-svc3"></canvas>
+  <div class="service-gradient"></div>
+  <div class="service-content" data-animate>
+    <div class="service-index">03</div>
+    <h2 class="service-title">AI落地咨询</h2>
+    <p class="service-subtitle">AI Implementation</p>
+    <p class="service-desc">将AI技术从概念验证落地到生产环境。提供大模型应用、智能自动化、数据驱动决策等全方位AI解决方案。</p>
+    <a href="#contact" class="service-cta">
+      <span>了解更多</span>
+      <span class="service-cta-arrow">→</span>
+    </a>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about-grid-bg"></div>
+  <div class="about-content" data-animate>
+    <div class="about-label">About Us</div>
+    <h2 class="about-title">关于序列源生</h2>
+    <p class="about-desc">我们相信技术的本质是让复杂变得简单，让低效化为高效。序列源生致力于通过卓越的工程能力与前沿的技术洞察，帮助企业在数字化浪潮中找到最优路径，驱动业务持续增长。</p>
+    <div class="about-values">
+      <div class="about-value">
+        <svg class="about-value-icon" viewBox="0 0 48 48" fill="none" stroke-width="1.5">
+          <circle cx="24" cy="24" r="18" stroke="currentColor" opacity="0.3"/>
+          <path d="M24 10 L24 24 L34 30" stroke="currentColor" stroke-linecap="round"/>
+          <circle cx="24" cy="10" r="2" fill="currentColor" opacity="0.6"/>
+          <circle cx="34" cy="30" r="2" fill="currentColor" opacity="0.6"/>
+          <path d="M16 38 L24 24" stroke="currentColor" opacity="0.4" stroke-linecap="round"/>
+          <circle cx="16" cy="38" r="2" fill="currentColor" opacity="0.4"/>
+        </svg>
+        <h3 class="about-value-title">创新</h3>
+        <p class="about-value-en">Innovation</p>
+        <p class="about-value-desc">拥抱变化，以前瞻性思维探索技术边界，为客户创造差异化价值</p>
+      </div>
+      <div class="about-value">
+        <svg class="about-value-icon" viewBox="0 0 48 48" fill="none" stroke-width="1.5">
+          <path d="M8 36 L16 20 L24 28 L32 12 L40 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="20" r="2" fill="currentColor" opacity="0.6"/>
+          <circle cx="24" cy="28" r="2" fill="currentColor" opacity="0.6"/>
+          <circle cx="32" cy="12" r="2" fill="currentColor" opacity="0.6"/>
+          <circle cx="40" cy="24" r="2" fill="currentColor" opacity="0.6"/>
+        </svg>
+        <h3 class="about-value-title">高效</h3>
+        <p class="about-value-en">Efficiency</p>
+        <p class="about-value-desc">用最优的路径达成目标，让每一行代码、每一个决策都产生最大价值</p>
+      </div>
+      <div class="about-value">
+        <svg class="about-value-icon" viewBox="0 0 48 48" fill="none" stroke-width="1.5">
+          <rect x="10" y="14" width="28" height="20" rx="2" stroke="currentColor" opacity="0.3"/>
+          <path d="M18 24 L22 28 L30 20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="10" y1="20" x2="38" y2="20" stroke="currentColor" opacity="0.15"/>
+        </svg>
+        <h3 class="about-value-title">可靠</h3>
+        <p class="about-value-en">Reliability</p>
+        <p class="about-value-desc">以工程化标准交付每一个项目，确保系统稳定、安全、可持续运行</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="contact-glow"></div>
+  <div class="contact-content" data-animate>
+    <div class="contact-label">Contact</div>
+    <h2 class="contact-title">联系我们</h2>
+    <p class="contact-desc">期待与您探讨合作机会，共同构建高效的数字未来</p>
+    <a href="mailto:it@sequencestream.com" class="contact-email">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="M2 4 L12 13 L22 4"/>
+      </svg>
+      it@sequencestream.com
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-line">
+    <span class="footer-copy">&copy; 2026 序列源生 SequenceStream. All rights reserved.</span>
+  </div>
+</footer>
+
+<script>
+// ═══════════ NAV SCROLL ═══════════
+const nav = document.getElementById('nav');
+let lastScroll = 0;
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+}, { passive: true });
+
+// ═══════════ MOBILE MENU ═══════════
+const hamburger = document.getElementById('hamburger');
+const mobileMenu = document.getElementById('mobileMenu');
+hamburger.addEventListener('click', () => {
+  mobileMenu.classList.toggle('open');
+  hamburger.classList.toggle('active');
+});
+function closeMobile() {
+  mobileMenu.classList.remove('open');
+  hamburger.classList.remove('active');
+}
+
+// ═══════════ SCROLL ANIMATIONS ═══════════
+const animateEls = document.querySelectorAll('[data-animate]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.15 });
+animateEls.forEach(el => observer.observe(el));
+
+// ═══════════ HERO PARTICLES ═══════════
+(function() {
+  const canvas = document.getElementById('hero-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles, connections;
+  const PARTICLE_COUNT = 120;
+  const CONNECTION_DIST = 150;
+  let mouse = { x: -1000, y: -1000 };
+  let animId;
+
+  function resize() {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  }
+
+  function init() {
+    resize();
+    particles = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 1.5 + 0.5,
+        o: Math.random() * 0.5 + 0.2
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,229,255,0.015)';
+    ctx.lineWidth = 0.5;
+    const gridSize = 80;
+    for (let x = 0; x < w; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // Connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < CONNECTION_DIST) {
+          const alpha = (1 - dist / CONNECTION_DIST) * 0.12;
+          ctx.strokeStyle = `rgba(0,229,255,${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Particles
+    particles.forEach(p => {
+      // Mouse interaction
+      const dx = mouse.x - p.x;
+      const dy = mouse.y - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 200) {
+        const force = (200 - dist) / 200 * 0.02;
+        p.vx -= dx * force * 0.01;
+        p.vy -= dy * force * 0.01;
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h;
+      if (p.y > h) p.y = 0;
+
+      // Damping
+      p.vx *= 0.999;
+      p.vy *= 0.999;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,229,255,${p.o})`;
+      ctx.fill();
+
+      // Glow
+      if (p.r > 1.2) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,229,255,${p.o * 0.08})`;
+        ctx.fill();
+      }
+    });
+
+    animId = requestAnimationFrame(draw);
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+  }, { passive: true });
+
+  canvas.addEventListener('mouseleave', () => {
+    mouse.x = -1000;
+    mouse.y = -1000;
+  });
+
+  window.addEventListener('resize', resize);
+  init();
+  draw();
+})();
+
+// ═══════════ SERVICE 1: CIRCUIT BOARD ═══════════
+(function() {
+  const canvas = document.getElementById('canvas-svc1');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resize() {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  }
+
+  const nodes = [];
+  const traces = [];
+
+  function init() {
+    resize();
+    nodes.length = 0;
+    traces.length = 0;
+
+    const cols = Math.floor(w / 100);
+    const rows = Math.floor(h / 100);
+    for (let i = 0; i <= cols; i++) {
+      for (let j = 0; j <= rows; j++) {
+        const x = (i / cols) * w + (Math.random() - 0.5) * 30;
+        const y = (j / rows) * h + (Math.random() - 0.5) * 30;
+        nodes.push({ x, y, pulse: Math.random() * Math.PI * 2 });
+      }
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+      const nearest = [];
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        nearest.push({ idx: j, dist: Math.sqrt(dx*dx + dy*dy) });
+      }
+      nearest.sort((a,b) => a.dist - b.dist);
+      const count = Math.floor(Math.random() * 2) + 1;
+      for (let k = 0; k < count && k < nearest.length; k++) {
+        if (nearest[k].dist < 180) {
+          traces.push({
+            from: i,
+            to: nearest[k].idx,
+            progress: Math.random(),
+            speed: 0.001 + Math.random() * 0.002
+          });
+        }
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    const time = Date.now() * 0.001;
+
+    traces.forEach(t => {
+      const from = nodes[t.from];
+      const to = nodes[t.to];
+      ctx.strokeStyle = 'rgba(0,229,255,0.04)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+
+      // Right-angle traces like circuit boards
+      const midX = from.x;
+      const midY = to.y;
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(midX, midY);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+
+      // Traveling pulse
+      t.progress += t.speed;
+      if (t.progress > 1) t.progress = 0;
+      const p = t.progress;
+      let px, py;
+      if (p < 0.5) {
+        px = from.x;
+        py = from.y + (midY - from.y) * (p * 2);
+      } else {
+        px = midX + (to.x - midX) * ((p - 0.5) * 2);
+        py = midY;
+      }
+
+      ctx.beginPath();
+      ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,229,255,0.3)';
+      ctx.fill();
+    });
+
+    nodes.forEach(n => {
+      const pulse = Math.sin(time * 2 + n.pulse) * 0.3 + 0.7;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,229,255,${0.08 * pulse})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  init();
+  draw();
+})();
+
+// ═══════════ SERVICE 2: DATA PIPELINE ═══════════
+(function() {
+  const canvas = document.getElementById('canvas-svc2');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resize() {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  }
+
+  const streams = [];
+
+  function init() {
+    resize();
+    streams.length = 0;
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const y = (h / (count + 1)) * (i + 1);
+      const dots = [];
+      const dotCount = Math.floor(Math.random() * 6) + 4;
+      for (let d = 0; d < dotCount; d++) {
+        dots.push({
+          x: Math.random() * w,
+          speed: 0.5 + Math.random() * 1.5,
+          size: Math.random() * 2 + 1
+        });
+      }
+      streams.push({
+        y: y + (Math.random() - 0.5) * 40,
+        amplitude: Math.random() * 20 + 5,
+        frequency: Math.random() * 0.005 + 0.002,
+        phase: Math.random() * Math.PI * 2,
+        dots
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    const time = Date.now() * 0.001;
+
+    streams.forEach(s => {
+      // Draw stream line
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0,229,255,0.03)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 2) {
+        const y = s.y + Math.sin(x * s.frequency + time + s.phase) * s.amplitude;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Draw flowing dots
+      s.dots.forEach(d => {
+        d.x += d.speed;
+        if (d.x > w + 10) d.x = -10;
+        const y = s.y + Math.sin(d.x * s.frequency + time + s.phase) * s.amplitude;
+
+        ctx.beginPath();
+        ctx.arc(d.x, y, d.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,229,255,0.25)`;
+        ctx.fill();
+
+        // Trail
+        ctx.beginPath();
+        ctx.arc(d.x, y, d.size * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,229,255,0.04)`;
+        ctx.fill();
+      });
+    });
+
+    // Vertical connectors
+    for (let i = 0; i < streams.length - 1; i++) {
+      if (Math.random() > 0.997) {
+        const x = Math.random() * w;
+        const y1 = streams[i].y;
+        const y2 = streams[i + 1].y;
+        ctx.strokeStyle = 'rgba(41,121,255,0.06)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x, y2);
+        ctx.stroke();
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  init();
+  draw();
+})();
+
+// ═══════════ SERVICE 3: NEURAL NETWORK ═══════════
+(function() {
+  const canvas = document.getElementById('canvas-svc3');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resize() {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  }
+
+  const neurons = [];
+  const synapses = [];
+
+  function init() {
+    resize();
+    neurons.length = 0;
+    synapses.length = 0;
+
+    // Create layered neural network structure
+    const layers = [5, 8, 10, 8, 5];
+    const layerSpacing = w / (layers.length + 1);
+
+    layers.forEach((count, li) => {
+      const x = layerSpacing * (li + 1);
+      const spacing = h / (count + 1);
+      for (let i = 0; i < count; i++) {
+        neurons.push({
+          x: x + (Math.random() - 0.5) * 40,
+          y: spacing * (i + 1) + (Math.random() - 0.5) * 20,
+          layer: li,
+          fire: Math.random() * Math.PI * 2,
+          fireRate: 0.5 + Math.random() * 2
+        });
+      }
+    });
+
+    // Create synapses between adjacent layers
+    for (let i = 0; i < neurons.length; i++) {
+      for (let j = 0; j < neurons.length; j++) {
+        if (neurons[j].layer === neurons[i].layer + 1) {
+          if (Math.random() > 0.5) {
+            synapses.push({
+              from: i,
+              to: j,
+              signal: Math.random(),
+              speed: 0.003 + Math.random() * 0.005,
+              active: false,
+              nextFire: Math.random() * 200
+            });
+          }
+        }
+      }
+    }
+  }
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    frame++;
+    const time = Date.now() * 0.001;
+
+    // Draw synapses
+    synapses.forEach(s => {
+      const from = neurons[s.from];
+      const to = neurons[s.to];
+
+      ctx.strokeStyle = 'rgba(124,77,255,0.03)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      // Curved connection
+      const cpx = (from.x + to.x) / 2;
+      const cpy = (from.y + to.y) / 2 + (Math.random() - 0.5) * 2;
+      ctx.quadraticCurveTo(cpx, cpy, to.x, to.y);
+      ctx.stroke();
+
+      // Signal pulse
+      s.nextFire--;
+      if (s.nextFire <= 0) {
+        s.active = true;
+        s.signal = 0;
+        s.nextFire = 100 + Math.random() * 300;
+      }
+
+      if (s.active) {
+        s.signal += s.speed;
+        if (s.signal > 1) {
+          s.active = false;
+          s.signal = 0;
+        } else {
+          const t = s.signal;
+          const px = from.x + (to.x - from.x) * t;
+          const py = from.y + (to.y - from.y) * t;
+
+          ctx.beginPath();
+          ctx.arc(px, py, 2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(124,77,255,0.5)';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(px, py, 6, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(124,77,255,0.08)';
+          ctx.fill();
+        }
+      }
+    });
+
+    // Draw neurons
+    neurons.forEach(n => {
+      const pulse = Math.sin(time * n.fireRate + n.fire) * 0.5 + 0.5;
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 3 + pulse * 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(124,77,255,${0.05 + pulse * 0.1})`;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,229,255,${0.2 + pulse * 0.3})`;
+      ctx.fill();
+
+      // Outer glow ring
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 8 + pulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(124,77,255,${0.01 + pulse * 0.02})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  init();
+  draw();
+})();
+
+// ═══════════ SMOOTH SCROLL FOR NAV LINKS ═══════════
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+});
+</script>
+</body>
+</html>
